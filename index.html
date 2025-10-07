@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Our Love Dashboard</title>
+<title>LilyMoon: Our Cozy Space</title>
 
 <!-- Leaflet (map) -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -95,11 +95,18 @@
   @keyframes bloom { 0%{transform:scale(0);opacity:0;}80%{transform:scale(1.1);opacity:1;}100%{transform:scale(1);} }
   .lily-anim { width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #e8f3ea 70%, #d8eadc 100%); border: 1px solid #cfe2d5; display: inline-block; margin-left: 6px; animation: bloom 0.8s ease-out forwards; }
 
-  body.night { background: radial-gradient(circle at top, #0b0c1a, #1a1a2e); color: #f0f0f0; }
-  .trail { position: fixed; pointer-events: none; animation: fadeTrail 1s forwards; }
-    @keyframes fadeTrail {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(2); }
+    body.night { 
+    background: radial-gradient(circle at top, #0b0c1a, #1a1a2e); 
+    color: #f0f0f0; 
+  }
+  .trail { 
+    position: fixed; 
+    pointer-events: none; 
+    animation: fadeTrail 1s forwards; 
+  }
+  @keyframes fadeTrail { 
+    from { opacity: 1; transform: scale(1); } 
+    to { opacity: 0; transform: scale(2); } 
   }
 
   .hidden { display: none; }
@@ -110,7 +117,7 @@
 <header>
   <div class="brand">
     <div class="moon" aria-hidden="true"></div>
-    <div class="title">Our Love Dashboard</div>
+    <div class="title">LilyMoon: Our Cozy Space</div>
   </div>
   <div class="auth">
     <span id="greeting" class="muted"></span>

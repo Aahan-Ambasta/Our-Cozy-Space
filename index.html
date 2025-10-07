@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Our Love Dashboard</title>
+
+<!-- Leaflet (map) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Firebase (compat for simpler inline use) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+  :root{
+    --bg: #ffffff;
+    --accent: #777aa8;
+    --accent2: #a2c3a4;
+    --text: #1f1f1f;
+    --muted: #6b6f7b;
+  }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+    color: var(--text);
+    background: linear-gradient(180deg, #fff0f5, #ffeef7, #fff);
+    overflow-x: hidden;
+  }
+
+  /* Floating emojis */
+  .floating-emojis { position: fixed; bottom: 0; left: 0; width: 100%; pointer-events: none; z-index: 0; }
+  .emoji { position: absolute; bottom: -40px; font-size: 28px; animation: floatUp 8s linear forwards; opacity: 0.9; }
+  @keyframes floatUp { 0%{transform:translateY(0) scale(1);opacity:0;}10%{opacity:1;}100%{transform:translateY(-120vh) scale(1.3);opacity:0;} }
+
+  header {
+    position: sticky; top: 0;
+    background: rgba(255,255,255,0.8);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid #eee;
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 10;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .moon { width: 28px; height: 28px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff 0%, #eee 40%, #ddd 70%, #cfd5e7 100%); box-shadow: 0 0 10px rgba(119,122,168,0.3); }
+  .title { font-weight: 700; letter-spacing: 0.2px; }
+
+  .auth { display: flex; align-items: center; gap: 8px; }
+  button { border: none; background: var(--accent); color: white; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.08); }
+  button.secondary { background: #e6e8f8; color: #3b3f69; }
+  button:hover { filter: brightness(1.05); }
+  .muted { color: var(--muted); }
+
+  .container { max-width: 1080px; margin: 24px auto; padding: 0 16px 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 860px) { .container { grid-template-columns: 1fr; } }
+
+  .card { background: #fff; border: 1px solid #eef0f7; border-radius: 14px; box-shadow: 0 8px 22px rgba(0,0,0,0.06); padding: 16px; }
+  .card h3 { margin: 0 0 8px 0; color: var(--accent); font-size: 18px; }
+
+  .clocks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .clock { background: #fafbff; border: 1px solid #eef1fb; border-radius: 12px; padding: 12px; }
+  .clock .label { font-weight: 700; }
+  .clock .time { font-size: 22px; margin-top: 6px; }
+
+  .weather-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .weather { background: #fafbff; border: 1px solid #eef1fb; border-radius: 12px; padding: 12px; }
+  .temp { font-size: 24px; font-weight: 700; }
+  .desc { text-transform: capitalize; }
+
+  .moon-phase { display: flex; align-items: center; gap: 12px; }
+  .phase-dot { width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #fff 0%, #ddd 70%, #cfd5e7 100%); box-shadow: 0 0 10px rgba(119,122,168,0.3); }
+
+  #map { width: 100%; height: 300px; border-radius: 12px; overflow: hidden; }
+  .distance-line { margin-top: 10px; }
+
+  .notes-list { display: grid; grid-template-columns: 1fr; gap: 10px; max-height: 220px; overflow: auto; margin-top: 10px; }
+  .note-item { background: #fcfdfd; border: 1px solid #eef3f1; border-radius: 10px; padding: 10px; }
+  .note-meta { font-size: 12px; color: var(--muted); }
+  textarea { width: 100%; border: 1px solid #e8ecf5; border-radius: 10px; min-height: 80px; padding: 10px; resize: vertical; font-family: inherit; }
+
+  .countdown { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pill { background: #f3f6ff; border: 1px solid #e7ebfb; border-radius: 100px; padding: 8px 12px; font-weight: 600; color: #3b3f69; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1);}50%{transform:scale(1.1);background:#ffe6f0;} }
+
+  .lily-bar { display: flex; gap: 6px; align-items: center; margin-top: 8px; color: var(--muted); }
+  .lily { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #e8f3ea 70%, #d8eadc 100%); border: 1px solid #cfe2d5; }
+  .cat { font-size: 28px; cursor: pointer; position: absolute; bottom: 10px; left: -50px; animation: walk 20s linear infinite; }
+  @keyframes walk { from { left: -50px; } to { left: 100%; } }
+
+  @keyframes bloom { 0%{transform:scale(0);opacity:0;}80%{transform:scale(1.1);opacity:1;}100%{transform:scale(1);} }
+  .lily-anim { width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #e8f3ea 70%, #d8eadc 100%); border: 1px solid #cfe2d5; display: inline-block; margin-left: 6px; animation: bloom 0.8s ease-out forwards; }
+
+  body.night { background: radial-gradient(circle at top, #0b0c1a, #1a1a2e); color: #f0f0f0; }
+  .trail { position: fixed; pointer-events: none; animation: fadeTrail 1s forwards; }
+    @keyframes fadeTrail {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(2); }
+  }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="moon" aria-hidden="true"></div>
+    <div class="title">Our Love Dashboard</div>
+  </div>
+  <div class="auth">
+    <span id="greeting" class="muted"></span>
+    <span id="userEmail" class="muted"></span>
+    <button id="toggleNight" class="secondary">🌙 Night Mode</button>
+    <button id="loginBtn">Sign in with Google</button>
+    <button id="logoutBtn" class="secondary">Sign out</button>
+    <button id="secretBtn" class="secondary">💌 Secret</button>
+  </div>
+</header>
+
+<main id="app" class="container hidden">
+  <!-- Time + Weather -->
+  <section class="card">
+    <h3>Time and weather</h3>
+    <div class="clocks">
+      <div class="clock">
+        <div class="label">Aahan</div>
+        <div id="timeMine" class="time">--:--</div>
+        <div id="dateMine" class="muted">----</div>
+      </div>
+      <div class="clock">
+        <div class="label">Rithika</div>
+        <div id="timeHer" class="time">--:--</div>
+        <div id="dateHer" class="muted">----</div>
+      </div>
+    </div>
+    <div style="height:8px"></div>
+    <div class="weather-wrap">
+      <div class="weather">
+        <div class="label">Aahan's weather</div>
+        <div id="tempMine" class="temp">--°</div>
+        <div id="descMine" class="desc muted">--</div>
+      </div>
+      <div class="weather">
+        <div class="label">Rithika's weather</div>
+        <div id="tempHer" class="temp">--°</div>
+        <div id="descHer" class="desc muted">--</div>
+      </div>
+    </div>
+    <div class="lily-bar">
+      <div class="lily" aria-hidden="true"></div>
+      <div class="lily" aria-hidden="true"></div>
+      <span>Under the same sky, always connected.</span>
+      <span class="cat" id="catEaster">🐱</span>
+    </div>
+  </section>
+
+  <!-- Moon + Anniversary -->
+  <section class="card">
+    <h3>Moon and our day</h3>
+    <div class="moon-phase">
+      <div class="phase-dot" aria-hidden="true"></div>
+      <div>
+        <div id="moonText"><span class="muted">Calculating moon phase...</span></div>
+        <div class="muted">No matter the phase, you’re my full moon 🌙</div>
+      </div>
+    </div>
+    <div style="height:12px"></div>
+    <div>
+      <div class="label">Anniversary (23 September)</div>
+      <div id="countdown" class="countdown">
+        <span class="pill">Days: --</span>
+        <span class="pill">Hours: --</span>
+        <span class="pill">Minutes: --</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Map + Distance -->
+  <section class="card">
+    <h3>Where we are</h3>
+    <div id="map"></div>
+    <div id="distance" class="distance-line muted" style="margin-top:8px;">Calculating distance...</div>
+  </section>
+
+  <!-- Shared Notes -->
+  <section class="card">
+    <h3>Our daily notes</h3>
+    <div class="muted">Leave a little love note for today. It becomes a lily in our garden.</div>
+    <div style="height:8px"></div>
+    <textarea id="noteInput" placeholder="Write something special..."></textarea>
+    <div style="height:8px"></div>
+    <button id="saveNoteBtn">Save today’s note</button>
+    <div style="height:12px"></div>
+    <div id="notes" class="notes-list"></div>
+  </section>
+
+  <!-- Quote of the Day -->
+  <section class="card">
+    <h3>Quote of the day</h3>
+    <div id="quote" class="muted">Loading...</div>
+  </section>
+
+  <!-- Love Streak -->
+  <section class="card">
+    <h3>Love streak</h3>
+    <div id="streak" class="muted">Loading streak...</div>
+  </section>
+
+  <!-- Secret Section -->
+  <section id="secret" class="card hidden">
+    <h3>Secret Letters</h3>
+    <div class="muted">Only for us 💕</div>
+  </section>
+
+  <!-- Playlist -->
+  <section class="card">
+    <h3>Our songs</h3>
+    <iframe style="border-radius:12px"
+      src="https://open.spotify.com/embed/playlist/0xknsK9kKWcU4CMhyAMy5Q"
+      width="100%" height="352" frameborder="0"
+      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+  </section>
+</main>
+
+<!-- Floating emojis container -->
+<div class="floating-emojis" id="emojiContainer"></div>
+
+<!-- App -->
+<script src="app.js"></script>
+</body>
+</html>
